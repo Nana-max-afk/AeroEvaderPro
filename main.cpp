@@ -1,5 +1,6 @@
 #include "SistemaUsuarios.h"
 #include "juego.h"
+#include "juego2d.h"
 #include <iostream>
 #include <limits>
 #include <string>
@@ -12,7 +13,11 @@
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
+#define CloseWindow Win32CloseWindow
+#define ShowCursor Win32ShowCursor
 #include <windows.h>
+#undef CloseWindow
+#undef ShowCursor
 #ifndef ENABLE_VIRTUAL_TERMINAL_PROCESSING
 #define ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x0004
 #endif
@@ -211,8 +216,9 @@ int main() {
             if (sistema.iniciarSesion(nombre, contrasena)) {
                 std::cout << "\n" << pad << "\x1B[92m  ✓ Bienvenido, " << nombre << ". Preparando cabina...\x1B[0m\n";
                 esperarEnter(pad);
-                juego.iniciar(nombre);
-                int puntajeFinal = juego.obtenerPuntaje();
+                Juego2D juego2d(800, 600);
+                juego2d.iniciar(nombre);
+                int puntajeFinal = juego2d.obtenerPuntaje();
                 sistema.registrarRecord(nombre, puntajeFinal);
                 sistema.actualizarPuntajeActual(puntajeFinal);
                 esperarEnter(pad);
