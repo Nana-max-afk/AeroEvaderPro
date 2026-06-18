@@ -18,7 +18,7 @@ Juego2D::Juego2D(int ancho, int alto, SistemaUsuarios* sistema)
       estadoActual(EstadoJuego2D::LoginRegister), opcionMenu(0), opcionCustomizer(0),
       seleccionNave(0), colorNave(WHITE), seleccionArma(0), weaponCooldownTimer(0.0f),
       jefeActivoIndex(-1), jefeVida(0), jefeVidaMax(100), jefeFase(1), jefeMovTimer(0.0f),
-      nextBossIndex(0), bossSpawnCooldown(10.0f), texturesLoaded(false),
+      nextBossIndex(0), bossSpawnCooldown(10.0f), screenShakeIntensity(0.0f), texturesLoaded(false),
       sistemaUsuarios(sistema), inputUser(""), inputPass(""), loginActiveField(0),
       authMessage(""), authMessageTimer(0.0f) {
     
@@ -60,6 +60,8 @@ void Juego2D::iniciar() {
     juegoActivo = true;
     estadoActual = EstadoJuego2D::LoginRegister;
     
+    // Configurar ventana redimensionable y VSync antes de inicializar la ventana
+    SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_VSYNC_HINT);
     InitWindow(anchoPantalla, altoPantalla, "Aero Evader Pro - Premium Edition");
     SetTargetFPS(60);
 
@@ -71,6 +73,10 @@ void Juego2D::iniciar() {
     bossTextures[1] = LoadTexture("assets/boss/boss1.png");
     texturesLoaded = true;
 
+    // Crear textura de renderizado virtual para mantener resolución 800x600 interna
+    RenderTexture2D target = LoadRenderTexture(800, 600);
+    SetTextureFilter(target.texture, TEXTURE_FILTER_BILINEAR);
+
     // Configuración inicial de estrellas
     inicializarEstrellas();
     obstaculos.clear();
@@ -79,6 +85,7 @@ void Juego2D::iniciar() {
     jefeActivoIndex = -1;
     nextBossIndex = 0;
     bossSpawnCooldown = 12.0f; // Primer boss a los 12 segundos
+    screenShakeIntensity = 0.0f;
 
     authMessage = "SISTEMAS ONLINE - INSERTE CREDENCIALES DE VUELO";
     authMessageTimer = 4.0f;
@@ -98,142 +105,68 @@ void Juego2D::iniciar() {
             if (authMessageTimer <= 0.0f) authMessage = "";
         }
 
+        // Decrementar intensidad del screen shake
+        if (screenShakeIntensity > 0.0f) {
+            screenShakeIntensity -= dt * 15.0f;
+            if (screenShakeIntensity < 0.0f) screenShakeIntensity = 0.0f;
+        }
+
+        // 1. PROCESAR LOGICA DE ACTUALIZACIONES
         switch (estadoActual) {
             case EstadoJuego2D::LoginRegister:
                 procesarEntradaLoginRegister();
-                
-                BeginDrawing();
-                ClearBackground(BLACK);
-                dibujarFondo();
-                dibujarEstrellas();
                 actualizarEstrellas(dt);
-                dibujarLoginRegister();
-                EndDrawing();
                 break;
 
             case EstadoJuego2D::MenuInicio:
                 procesarEntradaMenu();
-                
-                BeginDrawing();
-                ClearBackground(BLACK);
-                dibujarFondo();
-                dibujarEstrellas();
                 actualizarEstrellas(dt);
-                dibujarMenuInicio();
-                EndDrawing();
                 break;
 
             case EstadoJuego2D::Personalizacion:
                 procesarEntradaPersonalizacion();
-
-                BeginDrawing();
-                ClearBackground(BLACK);
-                dibujarFondo();
-                dibujarEstrellas();
                 actualizarEstrellas(dt);
-                dibujarPersonalizacion();
-                EndDrawing();
                 break;
 
             case EstadoJuego2D::RecordsGlobales:
                 if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_ENTER)) {
                     estadoActual = EstadoJuego2D::MenuInicio;
                 }
-                BeginDrawing();
-                ClearBackground(BLACK);
-                dibujarFondo();
-                dibujarEstrellas();
                 actualizarEstrellas(dt);
-                dibujarRecordsGlobales();
-                EndDrawing();
                 break;
 
             case EstadoJuego2D::EstadisticasPersonales:
                 if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_ENTER)) {
                     estadoActual = EstadoJuego2D::MenuInicio;
                 }
-                BeginDrawing();
-                ClearBackground(BLACK);
-                dibujarFondo();
-                dibujarEstrellas();
                 actualizarEstrellas(dt);
-                dibujarEstadisticasPersonales();
-                EndDrawing();
                 break;
 
             case EstadoJuego2D::HistorialPartidas:
                 if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_ENTER)) {
                     estadoActual = EstadoJuego2D::MenuInicio;
                 }
-                BeginDrawing();
-                ClearBackground(BLACK);
-                dibujarFondo();
-                dibujarEstrellas();
                 actualizarEstrellas(dt);
-                dibujarHistorialPartidas();
-                EndDrawing();
                 break;
 
             case EstadoJuego2D::InformacionJuego:
                 if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_ENTER)) {
                     estadoActual = EstadoJuego2D::MenuInicio;
                 }
-                BeginDrawing();
-                ClearBackground(BLACK);
-                dibujarFondo();
-                dibujarEstrellas();
                 actualizarEstrellas(dt);
-                dibujarInformacionJuego();
-                EndDrawing();
                 break;
 
             case EstadoJuego2D::Creditos:
                 if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_ENTER)) {
                     estadoActual = EstadoJuego2D::MenuInicio;
                 }
-                BeginDrawing();
-                ClearBackground(BLACK);
-                dibujarFondo();
-                dibujarEstrellas();
                 actualizarEstrellas(dt);
-                dibujarCreditos();
-                EndDrawing();
                 break;
 
             case EstadoJuego2D::Jugando:
                 procesarEntrada();
                 generarObstaculos();
                 actualizarEscena(dt);
-                
-                BeginDrawing();
-                ClearBackground(BLACK);
-                
-                dibujarFondo();
-                dibujarEstrellas();
-                dibujarParticulas();
-                
-                // Obstáculos normales
-                for (const auto &obs : obstaculos) {
-                    dibujarObstaculo(obs);
-                }
-                
-                // Proyectiles
-                for (const auto &proj : proyectiles) {
-                    if (proj.activo) {
-                        DrawRectangle((int)proj.posicion.x - 2, (int)proj.posicion.y - 8, 4, 16, RED);
-                        DrawRectangle((int)proj.posicion.x - 1, (int)proj.posicion.y - 6, 2, 12, WHITE);
-                    }
-                }
-
-                // Jefe
-                if (jefeActivoIndex != -1) {
-                    dibujarJefe();
-                }
-                
-                dibujarJugador();
-                dibujarHUD();
-                
-                EndDrawing();
                 break;
 
             case EstadoJuego2D::GameOver:
@@ -261,41 +194,134 @@ void Juego2D::iniciar() {
                 if (IsKeyPressed(KEY_ESCAPE)) {
                     estadoActual = EstadoJuego2D::MenuInicio;
                 }
-
-                BeginDrawing();
-                ClearBackground(BLACK);
-                dibujarFondo();
-                dibujarEstrellas();
                 actualizarEstrellas(dt);
-                
-                DibujarPanelVidrio(150, 100, 500, 400, RED, 0.85f);
-                
-                DrawText("MISION CONCLUIDA", anchoPantalla / 2 - MeasureText("MISION CONCLUIDA", 32) / 2, 130, 32, RED);
-                DrawText("EL SECTOR HA SIDO EVALUADO", anchoPantalla / 2 - MeasureText("EL SECTOR HA SIDO EVALUADO", 12) / 2, 175, 12, GRAY);
-                
-                // Mostrar estadísticas finales
-                DrawText(TextFormat("PILOTO:  %s", jugadorNombre.c_str()), 200, 220, 16, WHITE);
-                DrawText(TextFormat("PUNTAJE OBTENIDO:  %d PTS", puntaje), 200, 255, 16, GOLD);
-                DrawText(TextFormat("NIVEL DE AMENAZA:  NIVEL %d", nivel), 200, 290, 16, SKYBLUE);
-                DrawText(TextFormat("TIEMPO EN SECTOR:  %d SEGUNDOS", (int)tiempoTranscurrido), 200, 325, 16, ORANGE);
-                
-                std::string rangoVal = "D (RECLUTA)";
-                Color colorRango = RED;
-                if (puntaje >= 2000) { rangoVal = "S (LEYENDA ESTELAR)"; colorRango = GOLD; }
-                else if (puntaje >= 1200) { rangoVal = "A (AS DE VUELO)"; colorRango = SKYBLUE; }
-                else if (puntaje >= 700) { rangoVal = "B (SUPERIOR)"; colorRango = GREEN; }
-                else if (puntaje >= 300) { rangoVal = "C (ESTANDAR)"; colorRango = YELLOW; }
-                
-                DrawText(TextFormat("RANGO ASIGNADO:"), 200, 360, 16, WHITE);
-                DrawText(rangoVal.c_str(), 360, 360, 16, colorRango);
-                
-                DrawText("Presiona ESPACIO para reintentar", anchoPantalla / 2 - MeasureText("Presiona ESPACIO para reintentar", 14) / 2, 430, 14, WHITE);
-                DrawText("Presiona ESC para volver al menu principal", anchoPantalla / 2 - MeasureText("Presiona ESC para volver al menu principal", 12) / 2, 460, 12, GRAY);
-                
-                EndDrawing();
                 break;
         }
+
+        // 2. RENDIMIENTO AL LIENZO VIRTUAL 800x600
+        BeginTextureMode(target);
+        ClearBackground(BLACK);
+        
+        dibujarFondo();
+        dibujarEstrellas();
+        
+        switch (estadoActual) {
+            case EstadoJuego2D::LoginRegister:
+                dibujarLoginRegister();
+                break;
+
+            case EstadoJuego2D::MenuInicio:
+                dibujarMenuInicio();
+                break;
+
+            case EstadoJuego2D::Personalizacion:
+                dibujarPersonalizacion();
+                break;
+
+            case EstadoJuego2D::RecordsGlobales:
+                dibujarRecordsGlobales();
+                break;
+
+            case EstadoJuego2D::EstadisticasPersonales:
+                dibujarEstadisticasPersonales();
+                break;
+
+            case EstadoJuego2D::HistorialPartidas:
+                dibujarHistorialPartidas();
+                break;
+
+            case EstadoJuego2D::InformacionJuego:
+                dibujarInformacionJuego();
+                break;
+
+            case EstadoJuego2D::Creditos:
+                dibujarCreditos();
+                break;
+
+            case EstadoJuego2D::Jugando:
+                dibujarParticulas();
+                
+                // Obstáculos normales
+                for (const auto &obs : obstaculos) {
+                    dibujarObstaculo(obs);
+                }
+                
+                // Proyectiles
+                for (const auto &proj : proyectiles) {
+                    if (proj.activo) {
+                        DrawRectangle((int)proj.posicion.x - 2, (int)proj.posicion.y - 8, 4, 16, RED);
+                        DrawRectangle((int)proj.posicion.x - 1, (int)proj.posicion.y - 6, 2, 12, WHITE);
+                    }
+                }
+
+                // Jefe
+                if (jefeActivoIndex != -1) {
+                    dibujarJefe();
+                }
+                
+                dibujarJugador();
+                dibujarHUD();
+                break;
+
+            case EstadoJuego2D::GameOver:
+                {
+                    DibujarPanelVidrio(150, 100, 500, 400, RED, 0.85f);
+                    
+                    DrawText("MISION CONCLUIDA", anchoPantalla / 2 - MeasureText("MISION CONCLUIDA", 32) / 2, 130, 32, RED);
+                    DrawText("EL SECTOR HA SIDO EVALUADO", anchoPantalla / 2 - MeasureText("EL SECTOR HA SIDO EVALUADO", 12) / 2, 175, 12, GRAY);
+                    
+                    // Mostrar estadísticas finales
+                    DrawText(TextFormat("PILOTO:  %s", jugadorNombre.c_str()), 200, 220, 16, WHITE);
+                    DrawText(TextFormat("PUNTAJE OBTENIDO:  %d PTS", puntaje), 200, 255, 16, GOLD);
+                    DrawText(TextFormat("NIVEL DE AMENAZA:  NIVEL %d", nivel), 200, 290, 16, SKYBLUE);
+                    DrawText(TextFormat("TIEMPO EN SECTOR:  %d SEGUNDOS", (int)tiempoTranscurrido), 200, 325, 16, ORANGE);
+                    
+                    std::string rangoVal = "D (RECLUTA)";
+                    Color colorRango = RED;
+                    if (puntaje >= 2000) { rangoVal = "S (LEYENDA ESTELAR)"; colorRango = GOLD; }
+                    else if (puntaje >= 1200) { rangoVal = "A (AS DE VUELO)"; colorRango = SKYBLUE; }
+                    else if (puntaje >= 700) { rangoVal = "B (SUPERIOR)"; colorRango = GREEN; }
+                    else if (puntaje >= 300) { rangoVal = "C (ESTANDAR)"; colorRango = YELLOW; }
+                    
+                    DrawText(TextFormat("RANGO ASIGNADO:"), 200, 360, 16, WHITE);
+                    DrawText(rangoVal.c_str(), 360, 360, 16, colorRango);
+                    
+                    DrawText("Presiona ESPACIO para reintentar", anchoPantalla / 2 - MeasureText("Presiona ESPACIO para reintentar", 14) / 2, 430, 14, WHITE);
+                    DrawText("Presiona ESC para volver al menu principal", anchoPantalla / 2 - MeasureText("Presiona ESC para volver al menu principal", 12) / 2, 460, 12, GRAY);
+                }
+                break;
+        }
+        EndTextureMode();
+
+        // 3. DIBUJAR EL LIENZO VIRTUAL EN LA PANTALLA REAL CON PACTALLA COMPLETA INTELIGENTE
+        BeginDrawing();
+        ClearBackground(BLACK);
+
+        float scale = std::min((float)GetScreenWidth() / 800.0f, (float)GetScreenHeight() / 600.0f);
+        
+        Rectangle sourceRec = { 0.0f, 0.0f, (float)target.texture.width, -(float)target.texture.height }; // Y-flipped para OpenGL
+        Rectangle destRec = {
+            ((float)GetScreenWidth() - ((float)800.0f * scale)) * 0.5f,
+            ((float)GetScreenHeight() - ((float)600.0f * scale)) * 0.5f,
+            (float)800.0f * scale,
+            (float)600.0f * scale
+        };
+
+        // Si hay efecto de screen shake activo, aplicar offsets aleatorios a la posición del render
+        if (screenShakeIntensity > 0.0f) {
+            float shakeX = ((float)rand() / RAND_MAX * 2.0f - 1.0f) * screenShakeIntensity;
+            float shakeY = ((float)rand() / RAND_MAX * 2.0f - 1.0f) * screenShakeIntensity;
+            destRec.x += shakeX;
+            destRec.y += shakeY;
+        }
+        
+        DrawTexturePro(target.texture, sourceRec, destRec, Vector2{ 0.0f, 0.0f }, 0.0f, WHITE);
+        
+        EndDrawing();
     }
+
+    // Descargar RenderTexture de forma segura
+    UnloadRenderTexture(target);
 
     // Descargar texturas al finalizar
     if (texturesLoaded) {
@@ -568,17 +594,47 @@ void Juego2D::procesarEntrada() {
     
     const float radioLimites = 25.0f;
     
+    // CONTROL POR TECLADO
+    bool tecladoPresionado = false;
     if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)) {
         jugadorPos.x = std::max(radioLimites, jugadorPos.x - velocidadActual * dt);
+        tecladoPresionado = true;
     }
     if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) {
         jugadorPos.x = std::min((float)anchoPantalla - radioLimites, jugadorPos.x + velocidadActual * dt);
+        tecladoPresionado = true;
     }
     if (IsKeyDown(KEY_UP) || IsKeyDown(KEY_W)) {
         jugadorPos.y = std::max(50.0f, jugadorPos.y - velocidadActual * dt);
+        tecladoPresionado = true;
     }
     if (IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S)) {
         jugadorPos.y = std::min((float)altoPantalla - 50.0f, jugadorPos.y + velocidadActual * dt);
+        tecladoPresionado = true;
+    }
+
+    // CONTROL POR MOUSE (OPCIONAL/FLUIDO LERP)
+    // Solo se activa si el teclado no está presionado para evitar interferencias
+    Vector2 mousePos = GetMousePosition();
+    float scale = std::min((float)GetScreenWidth() / 800.0f, (float)GetScreenHeight() / 600.0f);
+    float offsetX = ((float)GetScreenWidth() - ((float)800.0f * scale)) * 0.5f;
+    float offsetY = ((float)GetScreenHeight() - ((float)600.0f * scale)) * 0.5f;
+
+    if (scale > 0.0f && !tecladoPresionado) {
+        float virtualMouseX = (mousePos.x - offsetX) / scale;
+        float virtualMouseY = (mousePos.y - offsetY) / scale;
+
+        // Limitar coordenadas virtuales del ratón
+        virtualMouseX = std::max(radioLimites, std::min((float)anchoPantalla - radioLimites, virtualMouseX));
+        virtualMouseY = std::max(50.0f, std::min((float)altoPantalla - 50.0f, virtualMouseY));
+
+        static Vector2 lastMousePos = { 0.0f, 0.0f };
+        if (fabs(mousePos.x - lastMousePos.x) > 1.5f || fabs(mousePos.y - lastMousePos.y) > 1.5f) {
+            // Suavizado Lerp para mayor sensación premium
+            jugadorPos.x += (virtualMouseX - jugadorPos.x) * 0.16f;
+            jugadorPos.y += (virtualMouseY - jugadorPos.y) * 0.16f;
+        }
+        lastMousePos = mousePos;
     }
     
     // Cambiar de arma en tiempo real
@@ -609,9 +665,9 @@ void Juego2D::procesarEntrada() {
         }
     }
 
-    // Disparar proyectiles
+    // Disparar proyectiles (teclado SPACE o click izquierdo del mouse)
     weaponCooldownTimer -= dt;
-    if (IsKeyDown(KEY_SPACE) && weaponCooldownTimer <= 0.0f) {
+    if ((IsKeyDown(KEY_SPACE) || IsMouseButtonDown(MOUSE_BUTTON_LEFT)) && weaponCooldownTimer <= 0.0f) {
         float cooldowns[] = { 0.2f, 0.35f, 0.5f, 0.8f };
         weaponCooldownTimer = cooldowns[seleccionArma];
 
@@ -846,6 +902,7 @@ void Juego2D::actualizarEscena(float dt) {
                         crearExplosion(colPos, RED, 40);
                         vidas--;
                         combo = 0;
+                        screenShakeIntensity = 10.0f;
                         mensajeNotificacion = "✕ IMPACTO DETECTADO! -1 VIDA ✕";
                         timerNotificacion = 3.5f;
                     }
@@ -879,9 +936,11 @@ void Juego2D::actualizarEscena(float dt) {
                 crearExplosion(jugadorPos, SKYBLUE, 30);
                 escudoActivo = false;
                 duracionEscudo = 0.0f;
+                screenShakeIntensity = 6.0f;
             } else {
                 crearExplosion(jugadorPos, RED, 40);
                 vidas--;
+                screenShakeIntensity = 14.0f;
             }
             // Repeler jugador hacia abajo para evitar daño múltiple por contacto inmediato
             jugadorPos.y = std::min((float)altoPantalla - 90.0f, jugadorPos.y + 120.0f);
@@ -920,6 +979,7 @@ void Juego2D::actualizarEscena(float dt) {
                     crearExplosion(jefePos, GOLD, 85);
                     jefeActivoIndex = -1; // Desactivar jefe actual
                     puntaje += 500;
+                    screenShakeIntensity = 22.0f;
                     nextBossIndex = (nextBossIndex + 1) % 10; // Cliclar entre los 10 jefes
                     bossSpawnCooldown = 15.0f; // 15 segundos hasta el próximo
                     mensajeNotificacion = "JEFE DERROTADO! +500 PTS. RECESO (15s)";

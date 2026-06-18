@@ -97,6 +97,7 @@ private:
     // Boss spawning cooldown rules
     int nextBossIndex;          // Siguiente jefe a invocar (0-9)
     float bossSpawnCooldown;    // Tiempo restante para el spawn en segundos
+    float screenShakeIntensity; // Intensidad del efecto de sacudida de pantalla
 
     std::vector<Obstaculo2D> obstaculos;
     std::vector<Estrella2D> estrellas;
