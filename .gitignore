@@ -6,3 +6,7 @@
 build/
 bin/
 raylib/
+historial_*.txt
+records.txt
+usuarios.txt
+config.txt
